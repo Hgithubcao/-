@@ -41,7 +41,8 @@ public class SqliteDatabase
  
 	[DllImport("sqlite3", EntryPoint = "sqlite3_prepare_v2")]
 	private static extern int sqlite3_prepare_v2 (IntPtr db, string zSql, int nByte, out IntPtr ppStmpt, IntPtr pzTail);
- 
+
+	// sqlite3.c 78075
 	[DllImport("sqlite3", EntryPoint = "sqlite3_step")]
 	private static extern int sqlite3_step (IntPtr stmHandle);
  
@@ -134,7 +135,10 @@ public class SqliteDatabase
 	
 	private void Open ()
 	{
-		this.Open (pathDB);	
+		if (!IsConnectionOpen)
+		{
+			this.Open(pathDB);
+		}
 	}
 	
 	private void Open (string path)
@@ -174,15 +178,21 @@ public class SqliteDatabase
 			Debug.Log ("ERROR: Can't execute the query, verify DB origin file");
 			return;
 		}
-			
-		this.Open ();
-		if (!IsConnectionOpen) {
-			throw new SqliteException ("SQLite database is not open.");
+
+		if (!IsConnectionOpen)
+		{
+			this.Open();
+			if (!IsConnectionOpen)
+			{
+				throw new SqliteException("SQLite database is not open.");
+			}
 		}
 
 		IntPtr stmHandle = Prepare (query);
  
 		if (sqlite3_step (stmHandle) != SQLITE_DONE) {
+			Finalize(stmHandle);
+			this.Close();
 			throw new SqliteException ("Could not execute SQL statement.");
 		}
         
