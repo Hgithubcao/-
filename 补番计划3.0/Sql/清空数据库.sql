@@ -1,0 +1,1 @@
+Delete from Supplement where 1=1

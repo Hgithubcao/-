@@ -29,7 +29,20 @@ public class TextToSqlite : Editor
 	[MenuItem("Assets/SeenToSeenSqlite", false, 2)]
 	static public void SeenToSqlite()
 	{
-		//ChangeTextToSqlite("Seen");
+		string path = AssetDatabase.GetAssetPath(Selection.activeObject);
+		var lines = ReadFileLines(path);
+		//PrintLines(lines);
+		for (int i = 0; i < lines.Length; i++)
+		{
+			string line = lines[i];
+			line = line.Replace("\t", ", ");
+			//line = "'" + line + "'";
+			//int index = line.IndexOf(',');
+			//line = line.Insert(index, "'");
+			lines[i] = line;
+			//Debug.Log(i + ": " +lines[i] + " " + index);
+		}
+		ChangeTextToSqlite(lines, "Supplement");
 	}
 
 	static private void ChangeTextToCSV(string[] lines, string tableName)
