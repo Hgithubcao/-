@@ -11,24 +11,22 @@ public class SqilteTest : MonoBehaviour
 	void Start()
     {
 		//打开测试数据库
-		Sqlite = new SqliteDatabase("test.db");
-
-		//添加数据
-		Sqlite.ExecuteNonQuery("insert into example (name) values('test name')");
+		Sqlite = new SqliteDatabase("Sqlite.db");
 		PrintData();
 
 	}
 
    private void PrintData()
 	{
-		DataTable dt = Sqlite.ExecuteQuery("SELECT * FROM example");
-		string name;
-		int id;
-		foreach(DataRow item in dt.Rows)
+		DataTable dt = Sqlite.ExecuteQuery("SELECT * FROM Supplement");
+		foreach (DataRow item in dt.Rows)
 		{
-			id = (int)item["id"];
-			name = (string)item["name"];
-			Debug.Log(id + "  " + name);
+			string str = "";
+			foreach (var obj in item)
+			{
+				str += obj.Key + ":" + obj.Value + "\t";
+			}
+			Debug.Log(str);
 		}
 	}
 }

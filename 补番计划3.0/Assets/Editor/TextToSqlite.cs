@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System;
+using System.Text;
+using System.Text.RegularExpressions;
 
 public class TextToSqlite : Editor
 {
@@ -17,11 +19,7 @@ public class TextToSqlite : Editor
 		{
 			string line = lines[i];
 			line = line.Replace("\t", ", ");
-			//line = "'" + line + "'";
-			//int index = line.IndexOf(',');
-			//line = line.Insert(index, "'");
 			lines[i] = line;
-			//Debug.Log(i + ": " +lines[i] + " " + index);
 		}
 		ChangeTextToCSV(lines, "Supplement");
 	}
@@ -30,19 +28,7 @@ public class TextToSqlite : Editor
 	static public void SeenToSqlite()
 	{
 		string path = AssetDatabase.GetAssetPath(Selection.activeObject);
-		var lines = ReadFileLines(path);
-		//PrintLines(lines);
-		for (int i = 0; i < lines.Length; i++)
-		{
-			string line = lines[i];
-			line = line.Replace("\t", ", ");
-			//line = "'" + line + "'";
-			//int index = line.IndexOf(',');
-			//line = line.Insert(index, "'");
-			lines[i] = line;
-			//Debug.Log(i + ": " +lines[i] + " " + index);
-		}
-		ChangeTextToSqlite(lines, "Supplement");
+		ReadText(path, "Seen");
 	}
 
 	static private void ChangeTextToCSV(string[] lines, string tableName)
@@ -74,15 +60,20 @@ public class TextToSqlite : Editor
 		}
 	}
 
+	/// <summary>
+	/// Problem:
+	/// 1、写进数据库之后，db browser看不到，但是程序读的到
+	/// 2、中文写不进数据库
+	/// </summary>
+	/// <param name="lines"></param>
+	/// <param name="tableName"></param>
 	static private void ChangeTextToSqlite(string[] lines, string tableName)
 	{
 		SqliteDatabase sqlite = new SqliteDatabase("Sqlite.db");
-		Debug.Log(lines.Length);
 		PrintSqlite(sqlite, tableName);
 		foreach (string line in lines)
 		{
 			string sqlQuery = string.Format("insert into {0} values({1})", tableName, line);
-			//Debug.Log(sqlQuery);
 			try
 			{
 				sqlite.ExecuteNonQuery(sqlQuery);
@@ -96,7 +87,7 @@ public class TextToSqlite : Editor
 
 			}
 		}
-		PrintSqlite(sqlite, tableName);
+		//PrintSqlite(sqlite, tableName);
 		
 	}
 
@@ -104,7 +95,7 @@ public class TextToSqlite : Editor
 	{
 		if (!File.Exists(path))
 			return null;
-		return File.ReadAllLines(path, System.Text.Encoding.Default);
+		return File.ReadAllLines(path, Encoding.Default);
 	}
 
 	static private void PrintLines(string[] lines)
@@ -126,6 +117,84 @@ public class TextToSqlite : Editor
 				str += obj.Key + ":" + obj.Value + "\t";
 			}
 			Debug.Log(str);
+		}
+	}
+
+	/// <summary>
+	/// 测试一下StreamReader
+	/// </summary>
+	/// <param name="path"></param>
+	static private void ReadText(string path, string tableName)
+	{
+		string filePath = Application.streamingAssetsPath + "//" + tableName + ".csv";
+		FileStream fs = new FileStream(filePath, FileMode.Append);
+		StreamWriter sw = new StreamWriter(fs, Encoding.UTF8);
+		using (StreamReader streamReader = new StreamReader(path, Encoding.Default))
+		{
+
+			string oneLineString;
+			int rowIndex = 0;
+			string csvLine = "";
+			while ((oneLineString = streamReader.ReadLine()) != null)
+			{
+				if(string.IsNullOrEmpty(oneLineString))
+				{
+					rowIndex = 0;
+					Debug.Log(csvLine);
+					sw.Write(csvLine);
+					csvLine = "";
+					continue;
+				}
+
+				switch(rowIndex)
+				{
+					case (0):
+					{
+							string[] info = oneLineString.Split(':');
+							// 第一行拿到看完日期和番名
+							Match match = Regex.Match(info[0], @"\d+年\d+月\d+日");
+							if(match != null)
+							{
+								csvLine += string.Format("{0}, {1}", info[1], match.Value);
+							}
+							break;
+					}
+					case (5):
+					{
+							// 第六行拿到看的时候的分数
+							string[] info = oneLineString.Split('：');
+							if (info.Length >= 2)
+								csvLine += "," + info[1] + "\n";
+							else
+								Debug.LogError(oneLineString);
+							break;
+					}
+					default:
+					{
+							// 第二行拿到开始想看的日期
+							// 第三行拿到当年热度
+							// 第四行拿到集数
+							// 第五行拿到更新年份
+							string[] info = oneLineString.Split(':');
+							if (info.Length >= 2)
+								csvLine += "," + info[1];
+							else
+								Debug.LogError(oneLineString);
+							break;
+					}
+				}
+
+				rowIndex ++;
+			}
+		}
+
+		if (sw != null)
+		{
+			sw.Close();
+		}
+		if (fs != null)
+		{
+			fs.Close();
 		}
 	}
 }
